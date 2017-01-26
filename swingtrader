@@ -1,0 +1,43 @@
+def initialize(context):
+    
+    set_long_only()
+    #set_max_order_count(1)
+    set_max_order_size(max_notional=2000.0)
+    set_commission(commission.PerTrade(cost=0))
+    
+    context.securities = [sid(45570),sid(45571)]
+    
+    schedule_function(buy,
+    date_rules.every_day(),
+    time_rules.market_open(minutes=60)
+    )
+    
+    schedule_function(sell,
+    date_rules.every_day(),
+    time_rules.market_close(minutes=30)
+    )
+    
+    
+
+def buy(context, data): 
+    for security in context.securities:
+        returned = data.history(security, "price", 2, "1d")
+        if returned[0] > returned[1]:
+            howmuch = (100*(1 - returned[1]/returned[0]))
+            print "---------------"
+            print str(security) + " is down by " + str(100*(1 - returned[1]/returned[0])) + " percent"
+            if howmuch >= 3:
+                print "Buying at " + str(data.current(security, 'price')) 
+                order_target_percent(security, 1.0)
+
+def handle_data(context, data):
+    if context.portfolio.positions_value > 0:
+        for security in context.portfolio.positions:
+            if (((data.current(security, 'price') / context.portfolio.positions[security].cost_basis) -1)*100) >= 5:
+                print "2 Percent Gain, Exiting"
+                order_target_percent(security,0.0)
+                
+def sell(context, data):
+    if context.portfolio.positions_value > 0:
+        for security in context.portfolio.positions:
+            order_target_percent(security,0.0)
